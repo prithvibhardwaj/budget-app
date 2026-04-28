@@ -1,0 +1,11 @@
+{
+  "appId": "com.prithvi.budgetapp",
+  "appName": "Budget",
+  "webDir": "dist",
+  "server": {
+    "cleartext": true
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

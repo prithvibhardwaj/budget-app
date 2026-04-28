@@ -5,3 +5,7 @@ data/
 .wwebjs_auth/
 dist/
 .DS_Store
+node_modules/
+frontend/android/.gradle/
+frontend/android/build/
+frontend/android/app/build/
