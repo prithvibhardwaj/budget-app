@@ -23,7 +23,7 @@ app.get('/api/whatsapp-qr', async (_req, res) => {
   const waState = require('./services/whatsapp-state');
   const qr = waState.getQR();
   if (!qr) {
-    return res.send('<html><body style="font-family:sans-serif;text-align:center;padding:2rem"><h2>No QR code available</h2><p>Bot may already be connected, or not started yet. Refresh in a few seconds.</p></body></html>');
+    return res.send('<html><head><meta http-equiv="refresh" content="3"></head><body style="font-family:sans-serif;text-align:center;padding:2rem"><h2>Waiting for QR code...</h2><p>This page will auto-refresh every 3 seconds.</p></body></html>');
   }
   const QRCode = require('qrcode');
   const dataUrl = await QRCode.toDataURL(qr, { width: 300 });
