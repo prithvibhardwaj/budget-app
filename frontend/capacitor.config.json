@@ -3,6 +3,7 @@
   "appName": "Budget",
   "webDir": "dist",
   "server": {
+    "url": "https://budget-app-pi-plum.vercel.app",
     "cleartext": true
   },
   "android": {
