@@ -2,10 +2,21 @@ const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLat
 const { Boom } = require('@hapi/boom');
 const pino = require('pino');
 const path = require('path');
+const fs = require('fs');
 const { parseExpense } = require('./openai');
 const { client: db } = require('../db');
 
 const authDir = path.join(process.env.DATA_DIR || path.join(__dirname, '..', 'data'), 'baileys_auth');
+
+function clearAuthDir() {
+  try {
+    fs.rmSync(authDir, { recursive: true, force: true });
+    fs.mkdirSync(authDir, { recursive: true });
+    console.log('Cleared stale WhatsApp credentials.');
+  } catch (e) {
+    console.error('Failed to clear auth dir:', e.message);
+  }
+}
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState(authDir);
@@ -34,17 +45,27 @@ async function startBot() {
           console.error('Failed to get pairing code:', e.message);
           console.log('Restart the service to try again.');
         }
-      }, 5000);
+      }, 1000);
     }
   }
 
   sock.ev.on('connection.update', async ({ connection, lastDisconnect }) => {
     if (connection === 'close') {
-      const shouldReconnect = (lastDisconnect?.error instanceof Boom)
-        ? lastDisconnect.error.output?.statusCode !== DisconnectReason.loggedOut
-        : true;
-      console.log('WhatsApp disconnected. Reconnecting:', shouldReconnect);
-      if (shouldReconnect) setTimeout(startBot, 3000);
+      const statusCode = (lastDisconnect?.error instanceof Boom)
+        ? lastDisconnect.error.output?.statusCode
+        : null;
+      const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+
+      if (isLoggedOut && !state.creds.registered) {
+        console.log('Stale credentials detected — clearing and restarting...');
+        clearAuthDir();
+        setTimeout(startBot, 2000);
+      } else if (!isLoggedOut) {
+        console.log('WhatsApp disconnected. Reconnecting...');
+        setTimeout(startBot, 3000);
+      } else {
+        console.log('WhatsApp logged out.');
+      }
     } else if (connection === 'open') {
       console.log('WhatsApp bot ready');
     }
