@@ -65,8 +65,11 @@ async function startBot() {
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
 
+    const selfJid = sock.user?.id?.replace(/:\d+@/, '@');
     for (const msg of messages) {
-      if (msg.key.fromMe || !msg.message) continue;
+      const isNoteToSelf = msg.key.remoteJid === selfJid;
+      if (msg.key.fromMe && !isNoteToSelf) continue;
+      if (!msg.message) continue;
 
       const text = (
         msg.message.conversation ||
