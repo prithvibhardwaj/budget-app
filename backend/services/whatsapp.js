@@ -74,9 +74,11 @@ async function startBot() {
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     const selfJid = sock.user?.id?.replace(/:\d+@/, '@');
+    console.log(`[msg] type=${type} count=${messages.length} selfJid=${selfJid}`);
 
     for (const msg of messages) {
       const isNoteToSelf = msg.key.remoteJid === selfJid;
+      console.log(`[msg] remoteJid=${msg.key.remoteJid} fromMe=${msg.key.fromMe} isNoteToSelf=${isNoteToSelf}`);
       // 'notify' = incoming from others; 'append' = sent from primary device (Note to Self)
       if (type !== 'notify' && !isNoteToSelf) continue;
       if (msg.key.fromMe && !isNoteToSelf) continue;
