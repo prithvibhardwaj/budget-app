@@ -6,7 +6,6 @@ RUN npm ci --omit=dev
 COPY . .
 
 RUN mkdir -p /data
-VOLUME ["/data"]
 
 ENV DATA_DIR=/data
 ENV PORT=3001

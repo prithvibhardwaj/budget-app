@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:apk": "cross-env VITE_API_URL=http://localhost:3001 vite build && cap sync android",
+    "build:apk": "vite build && cap sync android",
+    "build:apk:local": "cross-env VITE_API_URL=http://localhost:3001 vite build && cap sync android",
     "preview": "vite preview"
   },
   "dependencies": {
