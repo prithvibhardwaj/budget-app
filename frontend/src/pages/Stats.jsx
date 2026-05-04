@@ -81,7 +81,7 @@ export default function Stats() {
                 <>
                   <ResponsiveContainer width="100%" height={240}>
                     <PieChart>
-                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={3} dataKey="value">
+                      <Pie data={pieData} cx="50%" cy="50%" innerRadius={pieData.length > 1 ? 60 : 0} outerRadius={100} paddingAngle={pieData.length > 1 ? 3 : 0} dataKey="value">
                         {pieData.map(entry => (
                           <Cell key={entry.name} fill={CATEGORY_COLORS[entry.name] || '#6b7280'} />
                         ))}

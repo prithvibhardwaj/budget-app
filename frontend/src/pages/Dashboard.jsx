@@ -93,6 +93,7 @@ export default function Dashboard() {
                 category={cat}
                 items={items}
                 onClickExpense={setSelectedId}
+                onReload={load}
               />
             ))
           )}
@@ -104,7 +105,7 @@ export default function Dashboard() {
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {heavyExpenses.map(e => (
-                  <ExpenseRow key={e.id} expense={e} onClick={() => setSelectedId(e.id)} />
+                  <ExpenseRow key={e.id} expense={e} onClick={() => setSelectedId(e.id)} onDelete={load} />
                 ))}
               </div>
             </div>
@@ -135,7 +136,7 @@ function StatCard({ label, value, color, large }) {
   );
 }
 
-function CategoryGroup({ category, items, onClickExpense }) {
+function CategoryGroup({ category, items, onClickExpense, onReload }) {
   const total = items.reduce((s, e) => s + e.amount, 0);
   return (
     <div className="card">
@@ -148,13 +149,20 @@ function CategoryGroup({ category, items, onClickExpense }) {
         <span style={{ fontWeight: 700 }}>${total.toFixed(2)}</span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {items.map(e => <ExpenseRow key={e.id} expense={e} onClick={() => onClickExpense(e.id)} />)}
+        {items.map(e => <ExpenseRow key={e.id} expense={e} onClick={() => onClickExpense(e.id)} onDelete={onReload} />)}
       </div>
     </div>
   );
 }
 
-function ExpenseRow({ expense, onClick }) {
+function ExpenseRow({ expense, onClick, onDelete }) {
+  async function handleDelete(e) {
+    e.stopPropagation();
+    if (!confirm(`Delete $${expense.amount.toFixed(2)} ${expense.description}?`)) return;
+    await api.deleteExpense(expense.id);
+    onDelete?.();
+  }
+
   return (
     <div
       onClick={onClick}
@@ -173,6 +181,17 @@ function ExpenseRow({ expense, onClick }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {expense.whatsapp_note && <span title="Has WhatsApp note" style={{ fontSize: 12 }}>💬</span>}
         <span style={{ fontWeight: 600 }}>${expense.amount.toFixed(2)}</span>
+        <button
+          onClick={handleDelete}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: 'var(--text-muted)', fontSize: 16, lineHeight: 1, padding: '0 2px',
+            opacity: 0.5,
+          }}
+          onMouseEnter={e => e.currentTarget.style.opacity = 1}
+          onMouseLeave={e => e.currentTarget.style.opacity = 0.5}
+          title="Delete"
+        >×</button>
       </div>
     </div>
   );
