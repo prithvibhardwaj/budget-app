@@ -11,12 +11,23 @@ const authDir = path.join(process.env.DATA_DIR || path.join(__dirname, '..', 'da
 
 // Maps sent message ID → expense ID for reply-to-edit
 const msgToExpense = new Map();
+// IDs of messages sent by the bot — skip when echoed back
+const sentIds = new Set();
 
 function trackMsg(msgId, expenseId) {
   msgToExpense.set(msgId, expenseId);
+  sentIds.add(msgId);
   if (msgToExpense.size > 300) {
     msgToExpense.delete(msgToExpense.keys().next().value);
   }
+  if (sentIds.size > 300) {
+    sentIds.delete(sentIds.values().next().value);
+  }
+}
+
+function trackSent(msgId) {
+  sentIds.add(msgId);
+  if (sentIds.size > 300) sentIds.delete(sentIds.values().next().value);
 }
 
 function clearAuthDir() {
@@ -77,6 +88,7 @@ async function startBot() {
     const selfLid = sock.user?.lid?.replace(/:\d+@/, '@');
 
     for (const msg of messages) {
+      if (sentIds.has(msg.key.id)) { sentIds.delete(msg.key.id); continue; }
       const isNoteToSelf = msg.key.remoteJid === selfJid || msg.key.remoteJid === selfLid;
       // 'notify' = incoming from others; 'append' = sent from primary device (Note to Self)
       if (type !== 'notify' && !isNoteToSelf) continue;
@@ -124,9 +136,10 @@ async function startBot() {
         if (parsed.is_nsws) {
           await db.execute({ sql: "UPDATE sws_account SET balance = balance + ?, updated_at = datetime('now') WHERE id = 1", args: [parsed.amount] });
           const { rows: [sws] } = await db.execute('SELECT balance FROM sws_account WHERE id = 1');
-          await sock.sendMessage(msg.key.remoteJid, {
+          const sentRefund = await sock.sendMessage(msg.key.remoteJid, {
             text: `SWS refund: +$${parsed.amount.toFixed(2)} added back. Balance: $${Number(sws.balance).toFixed(2)}`,
           });
+          if (sentRefund?.key?.id) trackSent(sentRefund.key.id);
           continue;
         }
 
@@ -154,7 +167,8 @@ async function startBot() {
         }
       } catch (err) {
         console.error('WhatsApp handler error:', err);
-        await sock.sendMessage(msg.key.remoteJid, { text: 'Error logging expense. Please try again.' });
+        const sentErr = await sock.sendMessage(msg.key.remoteJid, { text: 'Error logging expense. Please try again.' });
+        if (sentErr?.key?.id) trackSent(sentErr.key.id);
       }
     }
   });
