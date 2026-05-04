@@ -52,7 +52,9 @@ async function startBot() {
         console.log('WhatsApp disconnected. Reconnecting...');
         setTimeout(startBot, 3000);
       } else {
-        console.log('WhatsApp logged out.');
+        console.log('WhatsApp session expired — clearing credentials and restarting...');
+        clearAuthDir();
+        setTimeout(startBot, 2000);
       }
     } else if (connection === 'open') {
       waState.clearQR();
