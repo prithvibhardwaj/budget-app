@@ -20,25 +20,25 @@ async function startBot() {
 
   sock.ev.on('creds.update', saveCreds);
 
-  let pairingRequested = false;
-
-  sock.ev.on('connection.update', async ({ connection, lastDisconnect }) => {
-    if (connection === 'connecting' && !state.creds.registered && !pairingRequested) {
-      pairingRequested = true;
-      const phone = process.env.WHATSAPP_PHONE_NUMBER;
-      if (!phone) {
-        console.error('Set WHATSAPP_PHONE_NUMBER env var (e.g. 6591234567) to get a pairing code');
-      } else {
-        await new Promise(r => setTimeout(r, 3000));
+  if (!state.creds.registered) {
+    const phone = (process.env.WHATSAPP_PHONE_NUMBER || '').replace(/\D/g, '');
+    if (!phone) {
+      console.error('Set WHATSAPP_PHONE_NUMBER env var (e.g. 6591234567) to get a pairing code');
+    } else {
+      setTimeout(async () => {
         try {
           const code = await sock.requestPairingCode(phone);
           console.log(`\n=== WhatsApp Pairing Code: ${code} ===`);
           console.log('WhatsApp → Settings → Linked Devices → Link a Device → Link with phone number\n');
         } catch (e) {
           console.error('Failed to get pairing code:', e.message);
+          console.log('Restart the service to try again.');
         }
-      }
+      }, 5000);
     }
+  }
+
+  sock.ev.on('connection.update', async ({ connection, lastDisconnect }) => {
     if (connection === 'close') {
       const shouldReconnect = (lastDisconnect?.error instanceof Boom)
         ? lastDisconnect.error.output?.statusCode !== DisconnectReason.loggedOut
