@@ -9,6 +9,16 @@ const waState = require('./whatsapp-state');
 
 const authDir = path.join(process.env.DATA_DIR || path.join(__dirname, '..', 'data'), 'baileys_auth');
 
+// Maps sent message ID → expense ID for reply-to-edit
+const msgToExpense = new Map();
+
+function trackMsg(msgId, expenseId) {
+  msgToExpense.set(msgId, expenseId);
+  if (msgToExpense.size > 300) {
+    msgToExpense.delete(msgToExpense.keys().next().value);
+  }
+}
+
 function clearAuthDir() {
   try {
     fs.rmSync(authDir, { recursive: true, force: true });
@@ -66,6 +76,7 @@ async function startBot() {
     if (type !== 'notify') return;
 
     const selfJid = sock.user?.id?.replace(/:\d+@/, '@');
+
     for (const msg of messages) {
       const isNoteToSelf = msg.key.remoteJid === selfJid;
       if (msg.key.fromMe && !isNoteToSelf) continue;
@@ -78,6 +89,29 @@ async function startBot() {
       ).trim();
 
       if (!text) continue;
+
+      // Check if this is a reply to a previously logged expense
+      const quotedId = msg.message?.extendedTextMessage?.contextInfo?.stanzaId;
+      if (quotedId && msgToExpense.has(quotedId)) {
+        const expenseId = msgToExpense.get(quotedId);
+        try {
+          const parsed = await parseExpense(text);
+          if (parsed.amount > 0) {
+            await db.execute({
+              sql: `UPDATE expenses SET amount=?, category=?, description=?, whatsapp_note=?, raw_message=? WHERE id=?`,
+              args: [parsed.amount, parsed.category, parsed.description, parsed.whatsapp_note, text, expenseId],
+            });
+            const sent = await sock.sendMessage(msg.key.remoteJid, {
+              text: `Updated: $${parsed.amount.toFixed(2)} for ${parsed.description} [${parsed.category}]`,
+            });
+            if (sent?.key?.id) trackMsg(sent.key.id, expenseId);
+            msgToExpense.delete(quotedId);
+          }
+        } catch (err) {
+          console.error('Reply-edit error:', err);
+        }
+        continue;
+      }
 
       try {
         const parsed = await parseExpense(text);
@@ -95,23 +129,27 @@ async function startBot() {
           continue;
         }
 
-        await db.execute({
+        const result = await db.execute({
           sql: `INSERT INTO expenses (amount, category, description, date, is_sws, is_heavy, whatsapp_note, raw_message)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           args: [parsed.amount, parsed.category, parsed.description, today,
             parsed.is_sws ? 1 : 0, parsed.is_heavy ? 1 : 0, parsed.whatsapp_note, text],
         });
 
+        const expenseId = Number(result.lastInsertRowid);
+
         if (parsed.is_sws) {
           await db.execute({ sql: "UPDATE sws_account SET balance = balance - ?, updated_at = datetime('now') WHERE id = 1", args: [parsed.amount] });
           const { rows: [sws] } = await db.execute('SELECT balance FROM sws_account WHERE id = 1');
-          await sock.sendMessage(msg.key.remoteJid, {
+          const sent = await sock.sendMessage(msg.key.remoteJid, {
             text: `SWS: $${parsed.amount.toFixed(2)} for ${parsed.description} logged from SWS fund. Balance: $${Number(sws.balance).toFixed(2)}`,
           });
+          if (sent?.key?.id) trackMsg(sent.key.id, expenseId);
         } else {
-          await sock.sendMessage(msg.key.remoteJid, {
-            text: `Logged: $${parsed.amount.toFixed(2)} for ${parsed.description} [${parsed.category}]${parsed.is_heavy ? ' ⚠ heavy expense' : ''}`,
+          const sent = await sock.sendMessage(msg.key.remoteJid, {
+            text: `Logged: $${parsed.amount.toFixed(2)} for ${parsed.description} [${parsed.category}]${parsed.is_heavy ? ' ⚠ heavy expense' : ''}\n_Reply to correct this entry_`,
           });
+          if (sent?.key?.id) trackMsg(sent.key.id, expenseId);
         }
       } catch (err) {
         console.error('WhatsApp handler error:', err);

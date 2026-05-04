@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { format, subMonths } from 'date-fns';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
@@ -9,23 +9,27 @@ import { CATEGORY_COLORS } from '../components/CategoryBadge';
 
 function monthKey(date) { return format(date, 'yyyy-MM'); }
 
-const MONTHS_BACK = 12;
-
 export default function Stats() {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedMonth, setSelectedMonth] = useState(monthKey(new Date()));
   const [stats, setStats] = useState(null);
   const [yearly, setYearly] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const month = monthKey(currentDate);
-
   useEffect(() => {
     setLoading(true);
-    Promise.all([api.getStats(month), api.getYearlyStats()])
+    Promise.all([api.getStats(selectedMonth), api.getYearlyStats()])
       .then(([s, y]) => { setStats(s); setYearly(y); })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [month]);
+  }, [selectedMonth]);
+
+  // Build dropdown options: months with data + last 6 months
+  const monthOptions = useMemo(() => {
+    const set = new Set(yearly.map(r => r.month));
+    const now = new Date();
+    for (let i = 0; i < 6; i++) set.add(monthKey(subMonths(now, i)));
+    return Array.from(set).sort().reverse();
+  }, [yearly]);
 
   const pieData = stats
     ? Object.entries(stats.byCategory).map(([name, value]) => ({ name, value: +value.toFixed(2) }))
@@ -42,17 +46,26 @@ export default function Stats() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
         <h1 style={{ fontWeight: 700, fontSize: 24 }}>Statistics</h1>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button
-            onClick={() => setCurrentDate(d => subMonths(d, 1))}
-            style={{ padding: '6px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)' }}
-          >←</button>
-          <span style={{ fontWeight: 600, minWidth: 120, textAlign: 'center' }}>{format(currentDate, 'MMMM yyyy')}</span>
-          <button
-            onClick={() => setCurrentDate(d => { const n = new Date(d); n.setMonth(n.getMonth() + 1); return n; })}
-            style={{ padding: '6px 12px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)' }}
-          >→</button>
-        </div>
+        <select
+          value={selectedMonth}
+          onChange={e => setSelectedMonth(e.target.value)}
+          style={{
+            padding: '8px 14px',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--surface)',
+            color: 'var(--text)',
+            fontWeight: 600,
+            fontSize: 14,
+            cursor: 'pointer',
+          }}
+        >
+          {monthOptions.map(m => (
+            <option key={m} value={m}>
+              {format(new Date(m + '-15'), 'MMMM yyyy')}
+            </option>
+          ))}
+        </select>
       </div>
 
       {loading ? (
@@ -104,7 +117,7 @@ export default function Stats() {
                   </div>
                   {stats.heavyExpenses?.length > 0 && (
                     <div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 8 }}>Heavy expenses this month</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 8 }}>One-time expenses this month</div>
                       {stats.heavyExpenses.map(e => (
                         <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0' }}>
                           <span style={{ color: 'var(--text-muted)' }}>{e.description}</span>
@@ -118,54 +131,72 @@ export default function Stats() {
             </div>
           </div>
 
-          <div className="card">
-            <h3 style={{ fontWeight: 600, marginBottom: 20 }}>Monthly Breakdown (all tracked months)</h3>
-            {barData.length === 0 ? (
-              <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 40 }}>No data yet</div>
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={barData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="month" tick={{ fill: 'var(--text-muted)', fontSize: 12 }} />
-                  <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 12 }} tickFormatter={v => `$${v}`} />
-                  <Tooltip
-                    contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}
-                    formatter={(v) => [`$${v.toFixed(2)}`]}
-                  />
-                  <Legend wrapperStyle={{ color: 'var(--text-muted)', fontSize: 12 }} />
-                  <Bar dataKey="Daily" stackId="a" fill="#6c63ff" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="Heavy" stackId="a" fill="#f59e0b" />
-                  <Bar dataKey="Fixed" stackId="a" fill="#374151" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
+          <details open>
+            <summary style={{ fontWeight: 600, fontSize: 16, cursor: 'pointer', padding: '16px 20px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', listStyle: 'none', display: 'flex', justifyContent: 'space-between' }}>
+              <span>Monthly Breakdown (all tracked months)</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>▾</span>
+            </summary>
+            <div className="card" style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTop: 'none', marginTop: 0 }}>
+              {barData.length === 0 ? (
+                <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 40 }}>No data yet</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={barData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="month" tick={{ fill: 'var(--text-muted)', fontSize: 12 }} />
+                    <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 12 }} tickFormatter={v => `$${v}`} />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}
+                      formatter={(v) => [`$${v.toFixed(2)}`]}
+                    />
+                    <Legend wrapperStyle={{ color: 'var(--text-muted)', fontSize: 12 }} />
+                    <Bar dataKey="Daily" stackId="a" fill="#6c63ff" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="Heavy" stackId="a" fill="#f59e0b" />
+                    <Bar dataKey="Fixed" stackId="a" fill="#374151" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </details>
 
-          <div className="card">
-            <h3 style={{ fontWeight: 600, marginBottom: 16 }}>All Months Table</h3>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr style={{ color: 'var(--text-muted)', textAlign: 'left' }}>
-                  {['Month', 'Daily', 'Heavy', 'Fixed', 'Grand Total'].map(h => (
-                    <th key={h} style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', fontWeight: 600 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {yearly.map(r => (
-                  <tr key={r.month} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '10px 12px', fontWeight: 500 }}>{r.month}</td>
-                    <td style={{ padding: '10px 12px' }}>${(r.daily_total || 0).toFixed(2)}</td>
-                    <td style={{ padding: '10px 12px', color: r.heavy_total > 0 ? 'var(--yellow)' : 'var(--text-muted)' }}>
-                      ${(r.heavy_total || 0).toFixed(2)}
-                    </td>
-                    <td style={{ padding: '10px 12px', color: 'var(--text-muted)' }}>${r.fixedTotal.toFixed(2)}</td>
-                    <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--green)' }}>${r.grandTotal.toFixed(2)}</td>
+          <details open>
+            <summary style={{ fontWeight: 600, fontSize: 16, cursor: 'pointer', padding: '16px 20px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', listStyle: 'none', display: 'flex', justifyContent: 'space-between' }}>
+              <span>All Months Table</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>▾</span>
+            </summary>
+            <div className="card" style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTop: 'none', padding: 0, overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ color: 'var(--text-muted)', textAlign: 'left', background: 'var(--surface)' }}>
+                    {['Month', 'Daily', 'Heavy', 'Fixed', 'Grand Total'].map(h => (
+                      <th key={h} style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', fontWeight: 600 }}>{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {yearly.map(r => (
+                    <tr
+                      key={r.month}
+                      onClick={() => setSelectedMonth(r.month)}
+                      style={{
+                        borderBottom: '1px solid var(--border)',
+                        cursor: 'pointer',
+                        background: r.month === selectedMonth ? 'var(--accent-dim)' : 'transparent',
+                      }}
+                    >
+                      <td style={{ padding: '10px 14px', fontWeight: r.month === selectedMonth ? 700 : 500, color: r.month === selectedMonth ? 'var(--accent)' : 'inherit' }}>{r.month}</td>
+                      <td style={{ padding: '10px 14px' }}>${(r.daily_total || 0).toFixed(2)}</td>
+                      <td style={{ padding: '10px 14px', color: r.heavy_total > 0 ? 'var(--yellow)' : 'var(--text-muted)' }}>
+                        ${(r.heavy_total || 0).toFixed(2)}
+                      </td>
+                      <td style={{ padding: '10px 14px', color: 'var(--text-muted)' }}>${r.fixedTotal.toFixed(2)}</td>
+                      <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--green)' }}>${r.grandTotal.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
         </div>
       )}
     </div>

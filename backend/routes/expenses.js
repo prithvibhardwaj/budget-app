@@ -18,6 +18,28 @@ router.get('/', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Bulk import — must come before /:id
+router.post('/import', async (req, res) => {
+  try {
+    const { expenses, clearFirst = true } = req.body;
+    if (!Array.isArray(expenses)) return res.status(400).json({ error: 'expenses must be an array' });
+
+    if (clearFirst) await client.execute('DELETE FROM expenses');
+
+    let inserted = 0;
+    for (const e of expenses) {
+      if (!e.amount || !e.category || !e.date) continue;
+      await client.execute({
+        sql: `INSERT INTO expenses (amount, category, description, date, is_sws, is_heavy, whatsapp_note, raw_message)
+              VALUES (?, ?, ?, ?, 0, ?, ?, '')`,
+        args: [e.amount, e.category, e.description || e.category, e.date, e.is_heavy ? 1 : 0, e.note || ''],
+      });
+      inserted++;
+    }
+    res.json({ inserted });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const { rows } = await client.execute({ sql: 'SELECT * FROM expenses WHERE id = ?', args: [req.params.id] });
@@ -44,6 +66,34 @@ router.post('/', async (req, res) => {
     }
 
     res.status(201).json({ id: Number(result.lastInsertRowid) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.patch('/:id', async (req, res) => {
+  try {
+    const { rows } = await client.execute({ sql: 'SELECT * FROM expenses WHERE id = ?', args: [req.params.id] });
+    if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+    const orig = rows[0];
+
+    const { amount, category, description, whatsapp_note, raw_message } = req.body;
+
+    // Adjust SWS balance if amount changed on an SWS expense
+    if (orig.is_sws && amount != null && Number(amount) !== Number(orig.amount)) {
+      const delta = Number(orig.amount) - Number(amount);
+      await client.execute({ sql: "UPDATE sws_account SET balance = balance + ?, updated_at = datetime('now') WHERE id = 1", args: [delta] });
+    }
+
+    await client.execute({
+      sql: `UPDATE expenses SET
+              amount = COALESCE(?, amount),
+              category = COALESCE(?, category),
+              description = COALESCE(?, description),
+              whatsapp_note = COALESCE(?, whatsapp_note),
+              raw_message = COALESCE(?, raw_message)
+            WHERE id = ?`,
+      args: [amount ?? null, category ?? null, description ?? null, whatsapp_note ?? null, raw_message ?? null, req.params.id],
+    });
+    res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
