@@ -1,7 +1,6 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const pino = require('pino');
-const qrcode = require('qrcode-terminal');
 const path = require('path');
 const { parseExpense } = require('./openai');
 const { client: db } = require('../db');
@@ -21,11 +20,18 @@ async function startBot() {
 
   sock.ev.on('creds.update', saveCreds);
 
-  sock.ev.on('connection.update', ({ connection, lastDisconnect, qr }) => {
-    if (qr) {
-      console.log('\n=== Scan this QR code with WhatsApp ===\n');
-      qrcode.generate(qr, { small: true });
+  if (!state.creds.registered) {
+    const phone = process.env.WHATSAPP_PHONE_NUMBER;
+    if (!phone) {
+      console.error('Set WHATSAPP_PHONE_NUMBER env var (e.g. 6591234567) to get a pairing code');
+    } else {
+      const code = await sock.requestPairingCode(phone);
+      console.log(`\n=== WhatsApp Pairing Code: ${code} ===`);
+      console.log('WhatsApp → Settings → Linked Devices → Link a Device → Link with phone number\n');
     }
+  }
+
+  sock.ev.on('connection.update', ({ connection, lastDisconnect }) => {
     if (connection === 'close') {
       const shouldReconnect = (lastDisconnect?.error instanceof Boom)
         ? lastDisconnect.error.output?.statusCode !== DisconnectReason.loggedOut
