@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { parseExpense } = require('./openai');
 const { client: db } = require('../db');
+const waState = require('./whatsapp-state');
 
 const authDir = path.join(process.env.DATA_DIR || path.join(__dirname, '..', 'data'), 'baileys_auth');
 
@@ -31,26 +32,13 @@ async function startBot() {
 
   sock.ev.on('creds.update', saveCreds);
 
-  if (!state.creds.registered) {
-    const phone = (process.env.WHATSAPP_PHONE_NUMBER || '').replace(/\D/g, '');
-    if (!phone) {
-      console.error('Set WHATSAPP_PHONE_NUMBER env var (e.g. 6591234567) to get a pairing code');
-    } else {
-      setTimeout(async () => {
-        try {
-          const code = await sock.requestPairingCode(phone);
-          console.log(`\n=== WhatsApp Pairing Code: ${code} ===`);
-          console.log('WhatsApp → Settings → Linked Devices → Link a Device → Link with phone number\n');
-        } catch (e) {
-          console.error('Failed to get pairing code:', e.message);
-          console.log('Restart the service to try again.');
-        }
-      }, 1000);
+  sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
+    if (qr) {
+      waState.setQR(qr);
+      console.log('QR code ready — open /api/whatsapp-qr in your browser to scan');
     }
-  }
-
-  sock.ev.on('connection.update', async ({ connection, lastDisconnect }) => {
     if (connection === 'close') {
+      waState.clearQR();
       const statusCode = (lastDisconnect?.error instanceof Boom)
         ? lastDisconnect.error.output?.statusCode
         : null;
@@ -67,6 +55,7 @@ async function startBot() {
         console.log('WhatsApp logged out.');
       }
     } else if (connection === 'open') {
+      waState.clearQR();
       console.log('WhatsApp bot ready');
     }
   });
