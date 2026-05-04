@@ -82,12 +82,7 @@ async function startBot() {
       try {
         const parsed = await parseExpense(text);
 
-        if (parsed.amount <= 0) {
-          await sock.sendMessage(msg.key.remoteJid, {
-            text: 'Could not parse an expense amount. Try: "5.50 chicken rice"',
-          });
-          continue;
-        }
+        if (parsed.amount <= 0) continue;
 
         const today = new Date().toISOString().split('T')[0];
 
