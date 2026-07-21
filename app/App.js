@@ -14,6 +14,7 @@ import ExpensesScreen from './src/screens/ExpensesScreen';
 import SwsScreen from './src/screens/SwsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import LinkWhatsAppScreen from './src/screens/LinkWhatsAppScreen';
+import HelpScreen from './src/screens/HelpScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -34,6 +35,7 @@ const TAB_ICONS = {
   Dashboard: 'stats-chart',
   Expenses: 'list',
   SWS: 'wallet',
+  Help: 'help-circle-outline',
   Settings: 'settings-outline',
 };
 
@@ -55,6 +57,7 @@ function Tabs() {
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Expenses" component={ExpensesScreen} />
       <Tab.Screen name="SWS" component={SwsScreen} options={{ title: 'SWS Fund' }} />
+      <Tab.Screen name="Help" component={HelpScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );

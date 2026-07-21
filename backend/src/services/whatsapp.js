@@ -4,7 +4,7 @@ const pino = require('pino');
 const path = require('path');
 const fs = require('fs');
 const { db, dataDir } = require('../db');
-const { encrypt, unwrapDataKey } = require('../crypto');
+const { encrypt, decrypt, unwrapDataKey } = require('../crypto');
 const { parseExpenseMessage } = require('./classify');
 const { convert } = require('./currency');
 
@@ -15,6 +15,20 @@ const logger = pino({ level: 'silent' });
 const sessions = new Map();
 
 const MAX_MESSAGE_AGE_SEC = 10 * 60; // ignore anything older (history replay protection)
+
+// Every message the bot sends starts with this marker, and every incoming
+// message that starts with it is dropped before ANY parsing. This is the
+// deterministic echo guard that makes command replies loop-safe: unlike the
+// v1 in-memory sent-id set, the rule lives in code and survives restarts.
+const BOT_PREFIX = '🤖';
+
+async function sendBotMessage(sock, jid, text) {
+  try {
+    await sock.sendMessage(jid, { text: `${BOT_PREFIX} ${text}` });
+  } catch (err) {
+    console.error('Bot message send failed:', err.message);
+  }
+}
 
 function authDirFor(userId) {
   return path.join(dataDir, 'wa', String(userId));
@@ -163,6 +177,7 @@ async function handleMessage(userId, sock, msg) {
 
   const text = (msg.message.conversation || msg.message.extendedTextMessage?.text || '').trim();
   if (!text) return; // reactions, media, protocol messages — all ignored
+  if (text.startsWith(BOT_PREFIX)) return; // our own echoed reply — never parse
 
   // Only the user's own "Note to Self" chat is ever read.
   const selfJid = sock.user?.id?.replace(/:\d+@/, '@');
@@ -183,6 +198,13 @@ async function handleMessage(userId, sock, msg) {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
   if (!user) return;
   const dataKey = unwrapDataKey(user.data_key_wrapped);
+
+  // Command messages start with // and are never expense-parsed. Dispatched
+  // after the dedupe insert so a redelivered //undo can't fire twice.
+  if (text.startsWith('//')) {
+    await handleCommand(userId, user, dataKey, sock, msg, text);
+    return;
+  }
 
   // Reply to a previously logged message -> edit or delete that entry.
   const quotedId = msg.message.extendedTextMessage?.contextInfo?.stanzaId;
@@ -223,6 +245,113 @@ async function handleMessage(userId, sock, msg) {
     .run(userId, parsed.amount, currency, amountHome, parsed.category,
       encrypt(parsed.description, dataKey), date, parsed.is_heavy ? 1 : 0, msg.key.id);
   await react(sock, msg, parsed.is_heavy ? '⚠️' : '✅');
+}
+
+const HELP_TEXT = `Budget bot — just text an expense, e.g. "Guzman 11.8"
+
+Logging:
+• "grab 14.5" → Transport, "bubble tea 3" → Drinks
+• "75 myr nasi lemak" → explicit currency (else your location's currency)
+• "sws 20 groceries" → from SWS fund (not in monthly spending)
+• "nsws 50" → top SWS fund back up
+• Reply to a logged message to correct it, reply "delete" to remove it
+
+Commands:
+//today — today's spending
+//week — last 7 days
+//month — this month incl. fixed
+//sws — SWS fund balance
+//last — recent entries
+//undo — remove the latest expense
+//help — this message
+
+The bot reacts ✅ when logged, ⚠️ heavy, 🏦 SWS, ✏️ edited, 🗑️ deleted.`;
+
+function tzDate(timezone, daysAgo = 0) {
+  try {
+    return new Date(Date.now() - daysAgo * 86400000)
+      .toLocaleDateString('en-CA', { timeZone: timezone || 'Asia/Singapore' });
+  } catch {
+    return new Date(Date.now() - daysAgo * 86400000).toISOString().slice(0, 10);
+  }
+}
+
+function money(n, cur) {
+  return `${cur} ${(Number(n) || 0).toFixed(2)}`;
+}
+
+async function handleCommand(userId, user, dataKey, sock, msg, text) {
+  const jid = msg.key.remoteJid;
+  const cmd = text.slice(2).trim().toLowerCase().split(/\s+/)[0];
+  const cur = user.home_currency;
+
+  if (cmd === 'help' || cmd === '') {
+    await sendBotMessage(sock, jid, HELP_TEXT);
+    return;
+  }
+
+  if (cmd === 'today' || cmd === 'week') {
+    const since = tzDate(user.timezone, cmd === 'today' ? 0 : 6);
+    const rows = db.prepare(`SELECT category, SUM(amount_home) amount FROM expenses
+                             WHERE user_id = ? AND date >= ? GROUP BY category ORDER BY amount DESC`)
+      .all(userId, since);
+    const total = rows.reduce((s, r) => s + r.amount, 0);
+    const label = cmd === 'today' ? 'Today' : 'Last 7 days';
+    if (!rows.length) {
+      await sendBotMessage(sock, jid, `${label}: nothing logged yet.`);
+      return;
+    }
+    const lines = rows.map((r) => `• ${r.category}: ${money(r.amount, cur)}`).join('\n');
+    await sendBotMessage(sock, jid, `${label}: ${money(total, cur)}\n${lines}`);
+    return;
+  }
+
+  if (cmd === 'month') {
+    const month = tzDate(user.timezone).slice(0, 7);
+    const variable = db.prepare('SELECT COALESCE(SUM(amount_home),0) t FROM expenses WHERE user_id = ? AND date LIKE ?')
+      .get(userId, `${month}%`).t;
+    const fixed = db.prepare('SELECT COALESCE(SUM(amount),0) t FROM fixed_expenses WHERE user_id = ? AND active = 1')
+      .get(userId).t;
+    await sendBotMessage(sock, jid,
+      `${month}: ${money(variable + fixed, cur)}\n• Spent: ${money(variable, cur)}\n• Fixed: ${money(fixed, cur)}`);
+    return;
+  }
+
+  if (cmd === 'sws') {
+    const acct = db.prepare('SELECT balance FROM sws_accounts WHERE user_id = ?').get(userId) || { balance: 0 };
+    await sendBotMessage(sock, jid, `SWS fund: ${money(acct.balance, cur)}`);
+    return;
+  }
+
+  if (cmd === 'last') {
+    const rows = db.prepare('SELECT * FROM expenses WHERE user_id = ? ORDER BY id DESC LIMIT 5').all(userId);
+    if (!rows.length) {
+      await sendBotMessage(sock, jid, 'No expenses logged yet.');
+      return;
+    }
+    const lines = rows.map((r) => {
+      let desc = '';
+      try { desc = decrypt(r.description_enc, dataKey); } catch {}
+      return `• ${r.date} ${desc} — ${money(r.amount_home, cur)} [${r.category}]`;
+    }).join('\n');
+    await sendBotMessage(sock, jid, `Recent:\n${lines}`);
+    return;
+  }
+
+  if (cmd === 'undo') {
+    const last = db.prepare('SELECT * FROM expenses WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(userId);
+    if (!last) {
+      await sendBotMessage(sock, jid, 'Nothing to undo.');
+      return;
+    }
+    db.prepare('DELETE FROM expenses WHERE id = ?').run(last.id);
+    let desc = '';
+    try { desc = decrypt(last.description_enc, dataKey); } catch {}
+    await sendBotMessage(sock, jid, `Removed: ${desc} — ${money(last.amount_home, cur)} (${last.date})`);
+    return;
+  }
+
+  await sendBotMessage(sock, jid, `Unknown command "//${cmd}". Try //help`);
 }
 
 async function handleReply(userId, user, dataKey, sock, msg, quotedId, text) {
@@ -277,4 +406,4 @@ function resumeAll() {
   }
 }
 
-module.exports = { startSession, stopSession, getStatus, resumeAll };
+module.exports = { startSession, stopSession, getStatus, resumeAll, _handleCommand: handleCommand };
