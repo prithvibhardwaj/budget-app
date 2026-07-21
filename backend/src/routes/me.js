@@ -65,6 +65,17 @@ router.put('/settings', (req, res) => {
   res.json({ ok: true });
 });
 
+// Delete the account and everything attached to it. Expenses, SWS history and
+// fixed expenses cascade via foreign keys; the WhatsApp session and dedupe
+// records are cleaned up explicitly.
+router.delete('/', (req, res) => {
+  const userId = req.user.id;
+  try { whatsapp.stopSession(userId); } catch { /* no session to stop */ }
+  db.prepare('DELETE FROM processed_messages WHERE user_id = ?').run(userId);
+  db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+  res.json({ ok: true });
+});
+
 // --- WhatsApp linking ---
 
 router.post('/whatsapp/link', async (req, res) => {
