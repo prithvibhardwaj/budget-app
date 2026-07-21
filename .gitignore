@@ -7,3 +7,4 @@ dist/
 app/.expo/
 app/android/
 app/ios/
+deploy/.env
