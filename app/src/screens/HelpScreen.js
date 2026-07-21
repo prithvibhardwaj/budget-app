@@ -43,7 +43,7 @@ export default function HelpScreen() {
         <Row left={'reply "delete"'} right="Removes that entry 🗑️" />
         <Row left={'//undo'} right="Removes the latest expense" />
         <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>
-          In the app: tap an expense to edit it, long-press to select and delete.
+          In the app: tap an expense to edit or delete it; long-press to select several and delete them together.
         </Text>
       </Card>
 

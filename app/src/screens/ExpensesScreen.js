@@ -14,6 +14,23 @@ function shiftMonth(month, delta) {
 }
 
 function EditModal({ visible, initial, onClose, onSaved }) {
+  function confirmDelete() {
+    Alert.alert('Delete expense', `Delete "${initial.description}" (${initial.amount_home.toFixed(2)})?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: async () => {
+          try {
+            await api(`/api/expenses/${initial.id}`, { method: 'DELETE' });
+            onSaved();
+          } catch (e) {
+            setError(e.message);
+          }
+        },
+      },
+    ]);
+  }
+
   const { user } = useAuth();
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -92,6 +109,9 @@ function EditModal({ visible, initial, onClose, onSaved }) {
             </View>
             <ErrorText>{error}</ErrorText>
             <Button title={initial ? 'Save changes' : 'Add expense'} onPress={save} loading={busy} />
+            {initial && (
+              <Button title="Delete this expense" kind="danger" onPress={confirmDelete} style={{ marginTop: 8 }} />
+            )}
             <Button title="Cancel" kind="ghost" onPress={onClose} style={{ marginTop: 8 }} />
           </ScrollView>
         </View>
