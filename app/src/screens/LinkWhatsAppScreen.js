@@ -52,14 +52,27 @@ export default function LinkWhatsAppScreen({ navigation }) {
     }
   }
 
-  function unlink() {
-    Alert.alert('Unlink WhatsApp', 'The bot will stop reading your Note to Self messages.', [
+  // Works in any state: disconnects a live link, or clears a half-finished
+  // pairing attempt so a fresh one can start.
+  function unlink(linked = true) {
+    Alert.alert(
+      linked ? 'Disconnect WhatsApp' : 'Reset connection',
+      linked
+        ? 'The bot will stop reading your Note to Self messages. You can link again anytime.'
+        : 'This clears the pending session so you can start a fresh attempt.',
+      [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Unlink', style: 'destructive',
+        text: linked ? 'Disconnect' : 'Reset', style: 'destructive',
         onPress: async () => {
-          await api('/api/me/whatsapp/unlink', { method: 'POST' });
-          setState({ status: 'unlinked', qr: null, pairing_code: null });
+          if (polling.current) { clearInterval(polling.current); polling.current = null; }
+          setError('');
+          try {
+            await api('/api/me/whatsapp/unlink', { method: 'POST' });
+          } catch (e) {
+            setError(e.message);
+          }
+          setState({ status: 'unlinked', qr: null, pairing_code: null, error: null });
           refreshUser().catch(() => {});
         },
       },
@@ -80,7 +93,7 @@ export default function LinkWhatsAppScreen({ navigation }) {
             • Reply to a logged message to correct it, or reply "delete" to remove it.{'\n\n'}
             The bot reacts with ✅ when an expense is logged. It only ever reads your Note to Self chat.
           </Text>
-          <Button title="Unlink" kind="danger" onPress={unlink} style={{ marginTop: 16 }} />
+          <Button title="Disconnect WhatsApp" kind="danger" onPress={() => unlink(true)} style={{ marginTop: 16 }} />
         </Card>
       ) : (
         <>
@@ -122,6 +135,15 @@ export default function LinkWhatsAppScreen({ navigation }) {
               </View>
             )}
           </Card>
+
+          {(state.status === 'connecting' || state.status === 'waiting_scan' || state.qr || state.pairing_code) && (
+            <Button
+              title="Reset connection"
+              kind="ghost"
+              onPress={() => unlink(false)}
+              style={{ marginBottom: 12 }}
+            />
+          )}
 
           {state.status === 'connecting' && (
             <Text style={{ color: colors.muted, textAlign: 'center' }}>Connecting…</Text>

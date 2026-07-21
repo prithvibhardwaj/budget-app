@@ -54,6 +54,23 @@ export default function SettingsScreen({ navigation }) {
     ]);
   }
 
+  function disconnectWhatsApp() {
+    Alert.alert('Disconnect WhatsApp', 'The bot will stop reading your Note to Self messages. You can link again anytime.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Disconnect', style: 'destructive',
+        onPress: async () => {
+          try {
+            await api('/api/me/whatsapp/unlink', { method: 'POST' });
+            await refreshUser();
+          } catch (e) {
+            Alert.alert('Error', e.message);
+          }
+        },
+      },
+    ]);
+  }
+
   async function saveCurrency() {
     try {
       await api('/api/me/settings', { method: 'PUT', body: { home_currency: homeCur } });
@@ -104,6 +121,9 @@ export default function SettingsScreen({ navigation }) {
           Link WhatsApp, then text expenses to yourself (Note to Self). "Guzman 11.8" logs $11.80 as Food.
         </Text>
         <Button title={user?.wa_linked ? 'Manage link' : 'Link WhatsApp'} onPress={() => navigation.navigate('LinkWhatsApp')} />
+        {user?.wa_linked && (
+          <Button title="Disconnect WhatsApp" kind="danger" onPress={disconnectWhatsApp} style={{ marginTop: 8 }} />
+        )}
       </Card>
 
       <Card>
