@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 
 // Set this to your deployed backend URL (or change it from the login screen).
-export const DEFAULT_API_URL = 'https://budget-api.up.railway.app';
+export const DEFAULT_API_URL = 'https://budget-app-production-7176.up.railway.app';
 
 let baseUrl = DEFAULT_API_URL;
 let token = null;
