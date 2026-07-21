@@ -85,7 +85,7 @@ router.get('/whatsapp/status', async (req, res) => {
   if (s.qr) {
     try { qrDataUrl = await QRCode.toDataURL(s.qr, { width: 300 }); } catch {}
   }
-  res.json({ status: s.status, qr: qrDataUrl, pairing_code: s.pairingCode });
+  res.json({ status: s.status, qr: qrDataUrl, pairing_code: s.pairingCode, error: s.error || null });
 });
 
 router.post('/whatsapp/unlink', (req, res) => {

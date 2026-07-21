@@ -1,4 +1,4 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, Browsers } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 const pino = require('pino');
 const path = require('path');
@@ -24,9 +24,9 @@ function getStatus(userId) {
   const s = sessions.get(userId);
   if (!s) {
     const linked = fs.existsSync(path.join(authDirFor(userId), 'creds.json'));
-    return { status: linked ? 'connecting' : 'unlinked', qr: null, pairingCode: null };
+    return { status: linked ? 'connecting' : 'unlinked', qr: null, pairingCode: null, error: null };
   }
-  return { status: s.status, qr: s.qr, pairingCode: s.pairingCode };
+  return { status: s.status, qr: s.qr, pairingCode: s.pairingCode, error: s.error };
 }
 
 async function startSession(userId, phone = null) {
@@ -37,15 +37,31 @@ async function startSession(userId, phone = null) {
     try { existing.sock?.end(); } catch {}
   }
 
-  const state = { sock: null, status: 'connecting', qr: null, pairingCode: null, phone, stopping: false, pairingRequested: false };
+  const state = { sock: null, status: 'connecting', qr: null, pairingCode: null, phone, stopping: false, pairingRequested: false, error: null };
   sessions.set(userId, state);
 
   const authDir = authDirFor(userId);
   fs.mkdirSync(authDir, { recursive: true });
+
+  // A half-finished pairing attempt leaves unregistered credentials behind that
+  // make the next attempt fail. Start pairing runs from a clean slate.
+  if (phone && !fs.existsSync(path.join(authDir, 'creds.json'))) {
+    fs.rmSync(authDir, { recursive: true, force: true });
+    fs.mkdirSync(authDir, { recursive: true });
+  }
+
   const { state: authState, saveCreds } = await useMultiFileAuthState(authDir);
   const { version } = await fetchLatestBaileysVersion();
 
-  const sock = makeWASocket({ version, auth: authState, logger, printQRInTerminal: false });
+  const sock = makeWASocket({
+    version,
+    auth: authState,
+    logger,
+    printQRInTerminal: false,
+    // Required for pairing-code login — Baileys rejects the pair without a
+    // valid browser identity here.
+    browser: Browsers.macOS('Google Chrome'),
+  });
   state.sock = sock;
 
   sock.ev.on('creds.update', saveCreds);
@@ -57,10 +73,17 @@ async function startSession(userId, phone = null) {
       // Pairing code flow: request once, after the socket is ready (first QR event).
       if (state.phone && !state.pairingRequested && !authState.creds.registered) {
         state.pairingRequested = true;
+        const digits = state.phone.replace(/\D/g, '');
         try {
-          const code = await sock.requestPairingCode(state.phone.replace(/\D/g, ''));
+          if (digits.length < 8 || digits.length > 15) {
+            throw new Error('Number must be in international format including country code, e.g. 6591234567');
+          }
+          const code = await sock.requestPairingCode(digits);
           state.pairingCode = code;
+          state.error = null;
+          console.log(`Pairing code issued for user ${userId} (number ends ...${digits.slice(-4)})`);
         } catch (err) {
+          state.error = err.message;
           console.error(`Pairing code request failed for user ${userId}:`, err.message);
         }
       }

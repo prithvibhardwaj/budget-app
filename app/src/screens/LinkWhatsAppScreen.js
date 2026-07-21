@@ -92,14 +92,17 @@ export default function LinkWhatsAppScreen({ navigation }) {
             </Text>
             <Label>Phone number (with country code)</Label>
             <Field value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="6591234567" />
-            <ErrorText>{error}</ErrorText>
-            <Button title="Get pairing code" onPress={() => start(true)} loading={starting} disabled={!phone.trim()} />
+            <ErrorText>{error || state.error}</ErrorText>
+            <Button title={state.pairing_code ? 'Get a new code' : 'Get pairing code'} onPress={() => start(true)} loading={starting} disabled={!phone.trim()} />
             {state.pairing_code && (
               <View style={{ alignItems: 'center', marginTop: 16 }}>
                 <Text style={{ color: colors.ink, fontSize: 32, fontWeight: '700', letterSpacing: 6, fontVariant: ['tabular-nums'] }}>
                   {state.pairing_code}
                 </Text>
-                <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>Enter this code in WhatsApp</Text>
+                <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4, textAlign: 'center' }}>
+                  Enter this in WhatsApp within about a minute — codes expire quickly.
+                  {'\n'}If it fails, tap "Get a new code" and try again.
+                </Text>
               </View>
             )}
           </Card>
