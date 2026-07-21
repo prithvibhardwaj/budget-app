@@ -31,6 +31,16 @@ export async function setToken(t) {
   else await SecureStore.deleteItemAsync('token');
 }
 
+// The recovery code is kept in the keychain so Settings can show it again.
+// The server only stores its hash and can never redisplay it.
+export async function saveRecoveryCode(code) {
+  await SecureStore.setItemAsync('recovery_code', code);
+}
+
+export async function getRecoveryCode() {
+  return SecureStore.getItemAsync('recovery_code');
+}
+
 export async function api(path, { method = 'GET', body } = {}) {
   let res;
   try {

@@ -252,20 +252,20 @@ const HELP_TEXT = `Budget bot — just text an expense, e.g. "Guzman 11.8"
 Logging:
 • "grab 14.5" → Transport, "bubble tea 3" → Drinks
 • "75 myr nasi lemak" → explicit currency (else your location's currency)
-• "sws 20 groceries" → from SWS fund (not in monthly spending)
-• "nsws 50" → top SWS fund back up
+• "sws 20 groceries" → from Misc Fund (not in monthly spending)
+• "nsws 50" → top Misc Fund back up
 • Reply to a logged message to correct it, reply "delete" to remove it
 
 Commands:
 //today — today's spending
 //week — last 7 days
 //month — this month incl. fixed
-//sws — SWS fund balance
+//sws — Misc Fund balance
 //last — recent entries
 //undo — remove the latest expense
 //help — this message
 
-The bot reacts ✅ when logged, ⚠️ heavy, 🏦 SWS, ✏️ edited, 🗑️ deleted.`;
+The bot reacts ✅ when logged, ⚠️ heavy, 🏦 Misc Fund, ✏️ edited, 🗑️ deleted.`;
 
 function tzDate(timezone, daysAgo = 0) {
   try {
@@ -319,7 +319,7 @@ async function handleCommand(userId, user, dataKey, sock, msg, text) {
 
   if (cmd === 'sws') {
     const acct = db.prepare('SELECT balance FROM sws_accounts WHERE user_id = ?').get(userId) || { balance: 0 };
-    await sendBotMessage(sock, jid, `SWS fund: ${money(acct.balance, cur)}`);
+    await sendBotMessage(sock, jid, `Misc Fund: ${money(acct.balance, cur)}`);
     return;
   }
 

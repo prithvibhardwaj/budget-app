@@ -88,8 +88,8 @@ export default function LinkWhatsAppScreen({ navigation }) {
             Open WhatsApp and message yourself (the "Note to Self" chat, or search your own number).{'\n\n'}
             • "Guzman 11.8" → logs Food{'\n'}
             • "grab 14.5" → logs Transport{'\n'}
-            • "sws 20 groceries" → spends from your SWS fund (not counted in monthly spending){'\n'}
-            • "nsws 50" → tops the SWS fund back up{'\n'}
+            • "sws 20 groceries" → spends from your Misc Fund (not counted in monthly spending){'\n'}
+            • "nsws 50" → tops the Misc Fund back up{'\n'}
             • Reply to a logged message to correct it, or reply "delete" to remove it.{'\n\n'}
             The bot reacts with ✅ when an expense is logged. It only ever reads your Note to Self chat.
           </Text>

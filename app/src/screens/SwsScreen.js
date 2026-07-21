@@ -63,12 +63,13 @@ export default function SwsScreen() {
         ListHeaderComponent={
           <>
             <Card>
-              <Text style={{ color: colors.muted, fontSize: 13 }}>SWS fund balance</Text>
+              <Text style={{ color: colors.muted, fontSize: 13 }}>Misc Fund balance</Text>
               <Text style={{ color: colors.ink, fontSize: 34, fontWeight: '700', marginVertical: 2 }}>
                 {fmtMoney(data?.balance, data?.currency)}
               </Text>
               <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 12 }}>
-                Completely separate from monthly spending. Text "sws 20 groceries" to spend from it, "nsws 50" to top it back up.
+                A separate pot of money — not the "Miscellaneous" expense category, and never counted in your
+                monthly spending. Text "sws 20 groceries" to spend from it, "nsws 50" to top it back up.
               </Text>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <Button title="Add transaction" onPress={() => openModal('txn')} style={{ flex: 1 }} />
@@ -80,7 +81,7 @@ export default function SwsScreen() {
             )}
           </>
         }
-        ListEmptyComponent={<Text style={{ color: colors.muted, textAlign: 'center', marginTop: 20 }}>No SWS transactions yet.</Text>}
+        ListEmptyComponent={<Text style={{ color: colors.muted, textAlign: 'center', marginTop: 20 }}>No Misc Fund transactions yet.</Text>}
         renderItem={({ item }) => (
           <Pressable
             onLongPress={() => deleteTxn(item)}
@@ -107,7 +108,7 @@ export default function SwsScreen() {
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
           <View style={{ backgroundColor: colors.surface, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 20 }}>
             <Text style={{ color: colors.ink, fontSize: 17, fontWeight: '600', marginBottom: 14 }}>
-              {modal === 'balance' ? 'Set SWS balance' : 'SWS transaction'}
+              {modal === 'balance' ? 'Set Misc Fund balance' : 'Misc Fund transaction'}
             </Text>
             {modal === 'txn' && (
               <Segmented

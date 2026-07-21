@@ -82,12 +82,15 @@ their own account and gets their own isolated data and WhatsApp link.
 
 ## 4. Onboarding (you)
 
-1. Open the app → **Create an account**.
+1. Open the app → **Get started**. There is no email or password: the app
+   creates an account tied to this device and shows a **recovery code**.
+   Save that code — it is the only way to reach your data from another phone.
+   (You can see it again anytime under Settings → Recovery code.)
 2. Allow **location** when asked (this is what makes `75` typed in Malaysia
    log as 75 MYR while your dashboard stays in SGD).
 3. Settings → **Fixed monthly expenses** → add yours:
    Claude 25.00 · Phone plan 19.90 · Spotify 6.00 · VPN 2.88.
-4. SWS tab → **Set balance** to your current SWS fund amount.
+4. Misc Fund tab → **Set balance** to your current fund amount.
 5. Settings → **Link WhatsApp** → enter your phone number → get the pairing
    code → WhatsApp → Settings → Linked Devices → Link a Device →
    **Link with phone number instead** → type the code.

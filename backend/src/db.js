@@ -77,4 +77,11 @@ CREATE TABLE IF NOT EXISTS processed_messages (
 );
 `);
 
+// --- migrations (safe to run repeatedly) ---
+const userCols = db.prepare('PRAGMA table_info(users)').all().map((c) => c.name);
+if (!userCols.includes('device_key_hash')) {
+  db.exec('ALTER TABLE users ADD COLUMN device_key_hash TEXT');
+}
+db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_device_key ON users(device_key_hash) WHERE device_key_hash IS NOT NULL');
+
 module.exports = { db, dataDir };

@@ -29,9 +29,9 @@ export default function HelpScreen() {
       </Card>
 
       <Card>
-        <Title>SWS fund</Title>
+        <Title>Misc Fund</Title>
         <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 10 }}>
-          Fully separate from monthly spending — SWS entries never appear in your totals or charts.
+          A separate pot of money, unrelated to the "Miscellaneous" expense category. Fund entries never appear in your monthly totals or charts.
         </Text>
         <Row left={'sws 20 groceries'} right="Spend 20 from the fund 🏦" />
         <Row left={'nsws 50'} right="Top the fund back up 💰" />
@@ -56,7 +56,7 @@ export default function HelpScreen() {
         <Row left={'//today'} right="Today's spending by category" />
         <Row left={'//week'} right="Last 7 days" />
         <Row left={'//month'} right="This month, including fixed expenses" />
-        <Row left={'//sws'} right="SWS fund balance" />
+        <Row left={'//sws'} right="Misc Fund balance" />
         <Row left={'//last'} right="Five most recent entries" />
         <Row left={'//undo'} right="Remove the latest expense" />
       </Card>
@@ -65,8 +65,8 @@ export default function HelpScreen() {
         <Title>Reactions</Title>
         <Row left={'✅'} right="Expense logged" />
         <Row left={'⚠️'} right="Logged and flagged heavy" />
-        <Row left={'🏦'} right="SWS fund spend" />
-        <Row left={'💰'} right="SWS fund top-up" />
+        <Row left={'🏦'} right="Misc Fund spend" />
+        <Row left={'💰'} right="Misc Fund top-up" />
         <Row left={'✏️'} right="Entry corrected" />
         <Row left={'🗑️'} right="Entry deleted" />
         <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>

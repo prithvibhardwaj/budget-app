@@ -7,8 +7,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthProvider, useAuth } from './src/AuthContext';
 import { colors } from './src/theme';
-import LoginScreen from './src/screens/LoginScreen';
-import RegisterScreen from './src/screens/RegisterScreen';
+import WelcomeScreen from './src/screens/WelcomeScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import ExpensesScreen from './src/screens/ExpensesScreen';
 import SwsScreen from './src/screens/SwsScreen';
@@ -34,7 +33,7 @@ const navTheme = {
 const TAB_ICONS = {
   Dashboard: 'stats-chart',
   Expenses: 'list',
-  SWS: 'wallet',
+  Misc: 'wallet',
   Help: 'help-circle-outline',
   Settings: 'settings-outline',
 };
@@ -56,7 +55,7 @@ function Tabs() {
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Expenses" component={ExpensesScreen} />
-      <Tab.Screen name="SWS" component={SwsScreen} options={{ title: 'SWS Fund' }} />
+      <Tab.Screen name="Misc" component={SwsScreen} options={{ title: "Misc Fund" }} />
       <Tab.Screen name="Help" component={HelpScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
@@ -88,10 +87,7 @@ function Root() {
           <Stack.Screen name="LinkWhatsApp" component={LinkWhatsAppScreen} options={{ title: 'Link WhatsApp' }} />
         </>
       ) : (
-        <>
-          <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="Register" component={RegisterScreen} options={{ title: '' }} />
-        </>
+        <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
       )}
     </Stack.Navigator>
   );

@@ -1,8 +1,8 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Modal, Alert } from 'react-native';
+import { View, Text, ScrollView, Pressable, Modal, Alert, Share } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { api } from '../api';
+import { api, getRecoveryCode, saveRecoveryCode } from '../api';
 import { useAuth } from '../AuthContext';
 import { colors, fmtMoney } from '../theme';
 import { Card, Title, Field, Button, Label, ErrorText } from '../components/ui';
@@ -14,13 +14,34 @@ export default function SettingsScreen({ navigation }) {
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [homeCur, setHomeCur] = useState('');
+  const [recoveryCode, setRecoveryCode] = useState(null);
+  const [showCode, setShowCode] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setFixed(await api('/api/fixed'));
+    setRecoveryCode(await getRecoveryCode());
     await refreshUser().catch(() => {});
   }, [refreshUser]);
+
+  function revealRecovery() {
+    if (recoveryCode) { setShowCode(!showCode); return; }
+    // No code stored on this device (e.g. an older email account) — mint one.
+    Alert.alert('Create a recovery code', 'This lets you restore your data on another phone. Any previous code stops working.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Create', onPress: async () => {
+          try {
+            const { recovery_code } = await api('/api/me/recovery-code', { method: 'POST' });
+            await saveRecoveryCode(recovery_code);
+            setRecoveryCode(recovery_code);
+            setShowCode(true);
+          } catch (e) { Alert.alert('Error', e.message); }
+        },
+      },
+    ]);
+  }
 
   useFocusEffect(useCallback(() => { load().catch(() => {}); }, [load]));
 
@@ -87,8 +108,7 @@ export default function SettingsScreen({ navigation }) {
     <ScrollView style={{ flex: 1, backgroundColor: colors.page }} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
       <Card>
         <Title>{user?.name}</Title>
-        <Text style={{ color: colors.muted, fontSize: 13 }}>{user?.email}</Text>
-        <View style={{ height: 10 }} />
+        <View style={{ height: 4 }} />
         <Text style={{ color: colors.secondary, fontSize: 13 }}>
           Home currency: <Text style={{ color: colors.ink }}>{user?.home_currency}</Text>
         </Text>
@@ -107,6 +127,34 @@ export default function SettingsScreen({ navigation }) {
           />
           <Button title="Set home currency" kind="ghost" onPress={saveCurrency} disabled={!homeCur} />
         </View>
+      </Card>
+
+      <Card>
+        <Title>Recovery code</Title>
+        <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 10 }}>
+          There's no email or password on this account. This code is the only way to reach your data
+          from another phone — keep a copy somewhere safe.
+        </Text>
+        {showCode && recoveryCode && (
+          <View style={{ backgroundColor: colors.page, borderRadius: 10, borderWidth: 1, borderColor: colors.border, padding: 12, marginBottom: 10 }}>
+            <Text selectable style={{ color: colors.ink, fontSize: 14, textAlign: 'center', fontFamily: 'monospace' }}>
+              {recoveryCode}
+            </Text>
+          </View>
+        )}
+        <Button
+          title={recoveryCode ? (showCode ? 'Hide code' : 'Show recovery code') : 'Create a recovery code'}
+          kind="ghost"
+          onPress={revealRecovery}
+        />
+        {showCode && recoveryCode && (
+          <Button
+            title="Share it somewhere safe"
+            kind="ghost"
+            onPress={() => Share.share({ message: `Budget app recovery code: ${recoveryCode}` })}
+            style={{ marginTop: 8 }}
+          />
+        )}
       </Card>
 
       <Card>

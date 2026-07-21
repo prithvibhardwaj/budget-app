@@ -2,6 +2,7 @@ const express = require('express');
 const QRCode = require('qrcode');
 const { db } = require('../db');
 const { currencyForCountry, KNOWN_CURRENCIES } = require('../services/currency');
+const { generateRecoveryCode, hashRecoveryCode } = require('../services/recovery');
 const whatsapp = require('../services/whatsapp');
 
 const router = express.Router();
@@ -63,6 +64,19 @@ router.put('/settings', (req, res) => {
   }
   if (name) db.prepare('UPDATE users SET name = ? WHERE id = ?').run(String(name).trim(), req.user.id);
   res.json({ ok: true });
+});
+
+// Generate (or rotate) this account's recovery code. Only the hash is stored,
+// so the plaintext is returned exactly once — the app must save it.
+// This is also how an older email/password account gets a recovery code.
+router.post('/recovery-code', (req, res) => {
+  const code = generateRecoveryCode();
+  db.prepare('UPDATE users SET device_key_hash = ? WHERE id = ?').run(hashRecoveryCode(code), req.user.id);
+  res.json({ recovery_code: code });
+});
+
+router.get('/recovery-code', (req, res) => {
+  res.json({ has_code: !!req.user.device_key_hash });
 });
 
 // Delete the account and everything attached to it. Expenses, SWS history and
