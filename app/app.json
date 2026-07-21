@@ -15,7 +15,12 @@
     },
     "android": {
       "package": "com.prithvi.budgetapp",
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#0d0d0d",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -34,6 +39,12 @@
           "locationWhenInUsePermission": "Your location sets the currency for expenses you log while travelling."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "64381883-c7f5-455b-9174-b614e8539dda"
+      }
+    },
+    "owner": "arkhamknight0410"
   }
 }
