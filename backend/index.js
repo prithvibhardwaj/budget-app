@@ -15,7 +15,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get('/health', (req, res) => res.json({ ok: true }));
+const startedAt = new Date().toISOString();
+
+// commit is populated by Railway (RAILWAY_GIT_COMMIT_SHA) so you can always
+// tell which code is actually deployed.
+app.get('/health', (req, res) => res.json({
+  ok: true,
+  commit: (process.env.RAILWAY_GIT_COMMIT_SHA || 'unknown').slice(0, 7),
+  started_at: startedAt,
+}));
 
 app.use('/api/auth', require('./src/routes/auth'));
 app.use('/api/me', requireAuth, require('./src/routes/me'));
