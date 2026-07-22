@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, FlatList, Pressable, Modal, Alert } from 'react-native';
+import { View, Text, FlatList, Pressable, Modal } from 'react-native';
+import { confirmAction } from '../dialogs';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api';
@@ -48,10 +49,13 @@ export default function SwsScreen() {
   }
 
   function deleteTxn(txn) {
-    Alert.alert('Delete', 'Delete this transaction? The balance will be restored.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => { await api(`/api/sws/txn/${txn.id}`, { method: 'DELETE' }); load(); } },
-    ]);
+    confirmAction({
+      title: 'Delete',
+      message: 'Delete this transaction? The balance will be restored.',
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: async () => { await api(`/api/sws/txn/${txn.id}`, { method: 'DELETE' }); load(); },
+    });
   }
 
   return (

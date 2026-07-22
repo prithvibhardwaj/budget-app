@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, FlatList, Pressable, Modal, Alert, ScrollView } from 'react-native';
+import { View, Text, FlatList, Pressable, Modal, ScrollView } from 'react-native';
+import { confirmAction } from '../dialogs';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api';
@@ -15,20 +16,20 @@ function shiftMonth(month, delta) {
 
 function EditModal({ visible, initial, onClose, onSaved }) {
   function confirmDelete() {
-    Alert.alert('Delete expense', `Delete "${initial.description}" (${initial.amount_home.toFixed(2)})?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive',
-        onPress: async () => {
-          try {
-            await api(`/api/expenses/${initial.id}`, { method: 'DELETE' });
-            onSaved();
-          } catch (e) {
-            setError(e.message);
-          }
-        },
+    confirmAction({
+      title: 'Delete expense',
+      message: `Delete "${initial.description}" (${initial.amount_home.toFixed(2)})?`,
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await api(`/api/expenses/${initial.id}`, { method: 'DELETE' });
+          onSaved();
+        } catch (e) {
+          setError(e.message);
+        }
       },
-    ]);
+    });
   }
 
   const { user } = useAuth();
@@ -141,18 +142,18 @@ export default function ExpensesScreen() {
   }
 
   async function deleteSelected() {
-    Alert.alert('Delete', `Delete ${selected.size} expense(s)?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive',
-        onPress: async () => {
-          await api('/api/expenses/bulk-delete', { method: 'POST', body: { ids: [...selected] } });
-          setSelected(new Set());
-          setSelectMode(false);
-          load();
-        },
+    confirmAction({
+      title: 'Delete',
+      message: `Delete ${selected.size} expense(s)?`,
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: async () => {
+        await api('/api/expenses/bulk-delete', { method: 'POST', body: { ids: [...selected] } });
+        setSelected(new Set());
+        setSelectMode(false);
+        load();
       },
-    ]);
+    });
   }
 
   const home = user?.home_currency || '';

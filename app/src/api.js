@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import { getItem, setItem, deleteItem } from './storage';
 
 // Set this to your deployed backend URL (or change it from the login screen).
 export const DEFAULT_API_URL = 'https://budget-app-production-7176.up.railway.app';
@@ -8,8 +8,8 @@ let token = null;
 
 export async function loadStored() {
   const [storedUrl, storedToken] = await Promise.all([
-    SecureStore.getItemAsync('api_url'),
-    SecureStore.getItemAsync('token'),
+    getItem('api_url'),
+    getItem('token'),
   ]);
   if (storedUrl) baseUrl = storedUrl;
   token = storedToken || null;
@@ -22,23 +22,22 @@ export function getBaseUrl() {
 
 export async function setBaseUrl(url) {
   baseUrl = url.replace(/\/+$/, '');
-  await SecureStore.setItemAsync('api_url', baseUrl);
+  await setItem('api_url', baseUrl);
 }
 
 export async function setToken(t) {
   token = t;
-  if (t) await SecureStore.setItemAsync('token', t);
-  else await SecureStore.deleteItemAsync('token');
+  if (t) await setItem('token', t);
+  else await deleteItem('token');
 }
 
-// The recovery code is kept in the keychain so Settings can show it again.
-// The server only stores its hash and can never redisplay it.
+// Kept locally so Settings can redisplay it — the server stores only its hash.
 export async function saveRecoveryCode(code) {
-  await SecureStore.setItemAsync('recovery_code', code);
+  await setItem('recovery_code', code);
 }
 
 export async function getRecoveryCode() {
-  return SecureStore.getItemAsync('recovery_code');
+  return getItem('recovery_code');
 }
 
 export async function api(path, { method = 'GET', body } = {}) {

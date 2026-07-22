@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, RefreshControl, useWindowDimensions 
 import { useFocusEffect } from '@react-navigation/native';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
-import { colors, categoryColors, fmtMoney } from '../theme';
+import { colors, categoryColors, fmtMoney, MAX_CONTENT_WIDTH } from '../theme';
 import { Card, Title, Segmented } from '../components/ui';
 import { Bars, Donut, LegendRows } from '../components/charts';
 
@@ -21,7 +21,8 @@ function monthName(month) {
 export default function DashboardScreen() {
   const { user } = useAuth();
   const { width } = useWindowDimensions();
-  const chartW = width - 40 - 32; // page padding + card padding
+  // Clamped to the same cap as the app shell so desktop charts stay readable.
+  const chartW = Math.min(width, MAX_CONTENT_WIDTH) - 40 - 32; // page + card padding
 
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7));
   const [overview, setOverview] = useState(null);

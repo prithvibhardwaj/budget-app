@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, Image, Alert } from 'react-native';
+import { View, Text, ScrollView, Image } from 'react-native';
+import { confirmAction } from '../dialogs';
 import { api } from '../api';
 import { useAuth } from '../AuthContext';
 import { colors } from '../theme';
@@ -55,28 +56,25 @@ export default function LinkWhatsAppScreen({ navigation }) {
   // Works in any state: disconnects a live link, or clears a half-finished
   // pairing attempt so a fresh one can start.
   function unlink(linked = true) {
-    Alert.alert(
-      linked ? 'Disconnect WhatsApp' : 'Reset connection',
-      linked
+    confirmAction({
+      title: linked ? 'Disconnect WhatsApp' : 'Reset connection',
+      message: linked
         ? 'The bot will stop reading your Note to Self messages. You can link again anytime.'
         : 'This clears the pending session so you can start a fresh attempt.',
-      [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: linked ? 'Disconnect' : 'Reset', style: 'destructive',
-        onPress: async () => {
-          if (polling.current) { clearInterval(polling.current); polling.current = null; }
-          setError('');
-          try {
-            await api('/api/me/whatsapp/unlink', { method: 'POST' });
-          } catch (e) {
-            setError(e.message);
-          }
-          setState({ status: 'unlinked', qr: null, pairing_code: null, error: null });
-          refreshUser().catch(() => {});
-        },
+      confirmLabel: linked ? 'Disconnect' : 'Reset',
+      destructive: true,
+      onConfirm: async () => {
+        if (polling.current) { clearInterval(polling.current); polling.current = null; }
+        setError('');
+        try {
+          await api('/api/me/whatsapp/unlink', { method: 'POST' });
+        } catch (e) {
+          setError(e.message);
+        }
+        setState({ status: 'unlinked', qr: null, pairing_code: null, error: null });
+        refreshUser().catch(() => {});
       },
-    ]);
+    });
   }
 
   return (

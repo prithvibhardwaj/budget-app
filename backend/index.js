@@ -7,6 +7,8 @@ if (!process.env.JWT_SECRET) {
 
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 require('./src/db'); // creates tables
 
 const { requireAuth } = require('./src/middleware/auth');
@@ -32,6 +34,23 @@ app.use('/api/expenses', requireAuth, require('./src/routes/expenses'));
 app.use('/api/stats', requireAuth, require('./src/routes/stats'));
 app.use('/api/sws', requireAuth, require('./src/routes/sws'));
 app.use('/api/fixed', requireAuth, require('./src/routes/fixed'));
+
+// Unknown API paths return JSON, not Express's default HTML error page.
+app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
+
+// The exported web app, served from the same origin as the API (so the browser
+// build needs no CORS handling and no separate host). Mounted AFTER the API
+// routes so it can never shadow them.
+const webDir = path.join(__dirname, 'public');
+if (fs.existsSync(path.join(webDir, 'index.html'))) {
+  app.use(express.static(webDir, { maxAge: '1h', index: false }));
+  // Client-side routing: any non-API GET falls back to the app shell.
+  app.get(/^(?!\/api\/).*/, (req, res, next) => {
+    if (req.method !== 'GET') return next();
+    res.sendFile(path.join(webDir, 'index.html'));
+  });
+  console.log('Serving web app from', webDir);
+}
 
 app.use((err, req, res, next) => {
   console.error(err);

@@ -6,7 +6,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthProvider, useAuth } from './src/AuthContext';
-import { colors } from './src/theme';
+import { colors, MAX_CONTENT_WIDTH } from './src/theme';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import ExpensesScreen from './src/screens/ExpensesScreen';
@@ -96,10 +96,14 @@ function Root() {
 export default function App() {
   return (
     <AuthProvider>
-      <NavigationContainer theme={navTheme}>
-        <StatusBar style="light" />
-        <Root />
-      </NavigationContainer>
+      <View style={{ flex: 1, backgroundColor: colors.page, alignItems: 'center' }}>
+        <View style={{ flex: 1, width: '100%', maxWidth: MAX_CONTENT_WIDTH }}>
+          <NavigationContainer theme={navTheme}>
+            <StatusBar style="light" />
+            <Root />
+          </NavigationContainer>
+        </View>
+      </View>
     </AuthProvider>
   );
 }

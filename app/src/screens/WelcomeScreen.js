@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Pressable, KeyboardAvoidingView, Platform, Share } from 'react-native';
+import { View, Text, ScrollView, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { shareText } from '../dialogs';
 import { useAuth } from '../AuthContext';
 import { Card, Field, Button, Label, ErrorText, Title } from '../components/ui';
 import { colors } from '../theme';
@@ -63,7 +64,7 @@ export default function WelcomeScreen() {
               {newCode}
             </Text>
           </View>
-          <Button title="Copy / share it somewhere safe" kind="ghost" onPress={() => Share.share({ message: `Budget app recovery code: ${newCode}` })} />
+          <Button title="Copy / share it somewhere safe" kind="ghost" onPress={() => shareText(`Budget app recovery code: ${newCode}`)} />
           <ErrorText>{error}</ErrorText>
           <Button
             title="I've saved it — continue"

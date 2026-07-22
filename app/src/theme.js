@@ -14,6 +14,11 @@ export const colors = {
   good: '#0ca30c',
 };
 
+// On a desktop browser the app is centred and capped at this width, so charts
+// and rows don't stretch across a monitor. Wider than any phone, so it has no
+// effect on native.
+export const MAX_CONTENT_WIDTH = 560;
+
 export const categoryColors = {
   Food: '#3987e5',
   Drinks: '#d95926',

@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Modal, Alert, Share } from 'react-native';
+import { View, Text, ScrollView, Pressable, Modal } from 'react-native';
+import { confirmAction, notify, shareText } from '../dialogs';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api, getRecoveryCode, saveRecoveryCode } from '../api';
@@ -28,19 +29,19 @@ export default function SettingsScreen({ navigation }) {
   function revealRecovery() {
     if (recoveryCode) { setShowCode(!showCode); return; }
     // No code stored on this device (e.g. an older email account) — mint one.
-    Alert.alert('Create a recovery code', 'This lets you restore your data on another phone. Any previous code stops working.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Create', onPress: async () => {
-          try {
-            const { recovery_code } = await api('/api/me/recovery-code', { method: 'POST' });
-            await saveRecoveryCode(recovery_code);
-            setRecoveryCode(recovery_code);
-            setShowCode(true);
-          } catch (e) { Alert.alert('Error', e.message); }
-        },
+    confirmAction({
+      title: 'Create a recovery code',
+      message: 'This lets you restore your data on another phone. Any previous code stops working.',
+      confirmLabel: 'Create',
+      onConfirm: async () => {
+        try {
+          const { recovery_code } = await api('/api/me/recovery-code', { method: 'POST' });
+          await saveRecoveryCode(recovery_code);
+          setRecoveryCode(recovery_code);
+          setShowCode(true);
+        } catch (e) { notify('Error', e.message); }
       },
-    ]);
+    });
   }
 
   useFocusEffect(useCallback(() => { load().catch(() => {}); }, [load]));
@@ -69,27 +70,30 @@ export default function SettingsScreen({ navigation }) {
   }
 
   function deleteFixed(item) {
-    Alert.alert('Delete', `Remove "${item.name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => { await api(`/api/fixed/${item.id}`, { method: 'DELETE' }); load(); } },
-    ]);
+    confirmAction({
+      title: 'Delete',
+      message: `Remove "${item.name}"?`,
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: async () => { await api(`/api/fixed/${item.id}`, { method: 'DELETE' }); load(); },
+    });
   }
 
   function disconnectWhatsApp() {
-    Alert.alert('Disconnect WhatsApp', 'The bot will stop reading your Note to Self messages. You can link again anytime.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Disconnect', style: 'destructive',
-        onPress: async () => {
-          try {
-            await api('/api/me/whatsapp/unlink', { method: 'POST' });
-            await refreshUser();
-          } catch (e) {
-            Alert.alert('Error', e.message);
-          }
-        },
+    confirmAction({
+      title: 'Disconnect WhatsApp',
+      message: 'The bot will stop reading your Note to Self messages. You can link again anytime.',
+      confirmLabel: 'Disconnect',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await api('/api/me/whatsapp/unlink', { method: 'POST' });
+          await refreshUser();
+        } catch (e) {
+          notify('Error', e.message);
+        }
       },
-    ]);
+    });
   }
 
   async function saveCurrency() {
@@ -98,7 +102,7 @@ export default function SettingsScreen({ navigation }) {
       setHomeCur('');
       await refreshUser();
     } catch (e) {
-      Alert.alert('Error', e.message);
+      notify('Error', e.message);
     }
   }
 
@@ -154,7 +158,7 @@ export default function SettingsScreen({ navigation }) {
           <Button
             title="Share it somewhere safe"
             kind="ghost"
-            onPress={() => Share.share({ message: `Budget app recovery code: ${recoveryCode}` })}
+            onPress={() => shareText(`Budget app recovery code: ${recoveryCode}`)}
             style={{ marginTop: 8 }}
           />
         )}
