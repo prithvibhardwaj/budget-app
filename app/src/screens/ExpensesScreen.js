@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, FlatList, Pressable, Modal, ScrollView } from 'react-native';
-import { confirmAction } from '../dialogs';
+import { confirmAction, notify } from '../dialogs';
+import { exportCsv } from '../exportCsv';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../api';
@@ -128,6 +129,18 @@ export default function ExpensesScreen() {
   const [modal, setModal] = useState({ visible: false, initial: null });
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState(new Set());
+  const [exporting, setExporting] = useState(false);
+
+  async function doExport() {
+    setExporting(true);
+    try {
+      await exportCsv(`/api/expenses/export?month=${month}`, `expenses-${month}.csv`);
+    } catch (e) {
+      notify('Export failed', e.message);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setItems(await api(`/api/expenses?month=${month}`));
@@ -168,6 +181,13 @@ export default function ExpensesScreen() {
         <View style={{ flexDirection: 'row', gap: 18, alignItems: 'center' }}>
           <Pressable onPress={() => setMonth(shiftMonth(month, 1))} hitSlop={12}>
             <Text style={{ color: colors.secondary, fontSize: 22 }}>›</Text>
+          </Pressable>
+          <Pressable onPress={doExport} hitSlop={8} disabled={exporting}>
+            <Ionicons
+              name={exporting ? 'hourglass-outline' : 'download-outline'}
+              size={20}
+              color={exporting ? colors.muted : colors.secondary}
+            />
           </Pressable>
           <Pressable onPress={() => { setSelectMode(!selectMode); setSelected(new Set()); }} hitSlop={8}>
             <Ionicons name={selectMode ? 'close' : 'checkbox-outline'} size={20} color={colors.secondary} />

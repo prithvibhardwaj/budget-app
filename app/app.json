@@ -38,7 +38,8 @@
         {
           "locationWhenInUsePermission": "Your location sets the currency for expenses you log while travelling."
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "extra": {
       "eas": {

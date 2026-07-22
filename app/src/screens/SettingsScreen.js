@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Modal } from 'react-native';
 import { confirmAction, notify, shareText } from '../dialogs';
+import { exportCsv } from '../exportCsv';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { api, getRecoveryCode, saveRecoveryCode } from '../api';
@@ -17,6 +18,18 @@ export default function SettingsScreen({ navigation }) {
   const [homeCur, setHomeCur] = useState('');
   const [recoveryCode, setRecoveryCode] = useState(null);
   const [showCode, setShowCode] = useState(false);
+  const [exporting, setExporting] = useState(null);
+
+  async function runExport(kind, path, filename) {
+    setExporting(kind);
+    try {
+      await exportCsv(path, filename);
+    } catch (e) {
+      notify('Export failed', e.message);
+    } finally {
+      setExporting(null);
+    }
+  }
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -134,6 +147,26 @@ export default function SettingsScreen({ navigation }) {
           />
           <Button title="Set home currency" kind="ghost" onPress={saveCurrency} disabled={!homeCur} />
         </View>
+      </Card>
+
+      <Card>
+        <Title>Export</Title>
+        <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 10 }}>
+          CSV files, which open directly in Excel, Numbers or Google Sheets.
+        </Text>
+        <Button
+          title={exporting === 'all' ? 'Exporting…' : 'Export all expenses'}
+          kind="ghost"
+          disabled={!!exporting}
+          onPress={() => runExport('all', '/api/expenses/export', 'expenses-all.csv')}
+        />
+        <Button
+          title={exporting === 'misc' ? 'Exporting…' : 'Export Misc Fund history'}
+          kind="ghost"
+          disabled={!!exporting}
+          onPress={() => runExport('misc', '/api/sws/export', 'misc-fund.csv')}
+          style={{ marginTop: 8 }}
+        />
       </Card>
 
       <Card>

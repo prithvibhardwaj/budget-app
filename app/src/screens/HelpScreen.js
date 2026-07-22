@@ -76,6 +76,15 @@ export default function HelpScreen() {
       </Card>
 
       <Card>
+        <Title>Exporting</Title>
+        <Row left={'Expenses tab'} right="Download icon exports the month you're viewing" />
+        <Row left={'Settings'} right="Export all expenses, or Misc Fund history" />
+        <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>
+          Files are CSV and open directly in Excel, Numbers or Google Sheets.
+        </Text>
+      </Card>
+
+      <Card>
         <Title>Categories</Title>
         {Object.entries(categoryColors).map(([name, color]) => (
           <View key={name} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>

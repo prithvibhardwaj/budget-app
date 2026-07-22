@@ -1,8 +1,35 @@
 const express = require('express');
 const { db } = require('../db');
 const { encrypt, decrypt } = require('../crypto');
+const { sendCsv } = require('../services/csv');
 
 const router = express.Router();
+
+// Misc Fund history as CSV. Separate from the expenses export because the two
+// are deliberately independent ledgers.
+router.get('/export', (req, res) => {
+  const rows = db.prepare('SELECT * FROM sws_transactions WHERE user_id = ? ORDER BY date, id')
+    .all(req.user.id);
+  const home = req.user.home_currency;
+  const csvRows = rows.map((t) => {
+    let description = '';
+    try { description = t.description_enc ? decrypt(t.description_enc, req.dataKey) : ''; } catch {}
+    return [
+      t.date,
+      description,
+      t.type === 'spend' ? 'Spend' : 'Top-up',
+      t.amount.toFixed(2),
+      t.currency,
+      (t.type === 'spend' ? -t.amount_home : t.amount_home).toFixed(2),
+    ];
+  });
+  sendCsv(
+    res,
+    'misc-fund.csv',
+    ['Date', 'Description', 'Type', 'Amount', 'Currency', `Change (${home})`],
+    csvRows
+  );
+});
 
 router.get('/', (req, res) => {
   const account = db.prepare('SELECT balance FROM sws_accounts WHERE user_id = ?').get(req.user.id) || { balance: 0 };

@@ -40,6 +40,25 @@ export async function getRecoveryCode() {
   return getItem('recovery_code');
 }
 
+// Same auth as api(), but returns the raw response body — used for CSV export,
+// where the server sends text/csv rather than JSON.
+export async function apiText(path) {
+  let res;
+  try {
+    res = await fetch(`${baseUrl}${path}`, {
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    });
+  } catch {
+    throw new Error('Cannot reach server. Check your connection.');
+  }
+  if (!res.ok) {
+    let message = `Export failed (${res.status})`;
+    try { message = (await res.json()).error || message; } catch {}
+    throw new Error(message);
+  }
+  return res.text();
+}
+
 export async function api(path, { method = 'GET', body } = {}) {
   let res;
   try {

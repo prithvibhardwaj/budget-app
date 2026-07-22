@@ -3,6 +3,7 @@ const { db } = require('../db');
 const { encrypt, decrypt } = require('../crypto');
 const { convert } = require('../services/currency');
 const { CATEGORIES } = require('../services/classify');
+const { sendCsv } = require('../services/csv');
 
 const router = express.Router();
 
@@ -21,6 +22,45 @@ function toJson(row, dataKey) {
     source: row.source,
   };
 }
+
+// GET /api/expenses/export?month=YYYY-MM   (omit month to export everything)
+// Declared before the parameterised routes so "export" is never read as an id.
+router.get('/export', (req, res) => {
+  const { month, from, to } = req.query;
+  let rows;
+  if (month) {
+    rows = db.prepare('SELECT * FROM expenses WHERE user_id = ? AND date LIKE ? ORDER BY date, id')
+      .all(req.user.id, `${month}%`);
+  } else if (from && to) {
+    rows = db.prepare('SELECT * FROM expenses WHERE user_id = ? AND date BETWEEN ? AND ? ORDER BY date, id')
+      .all(req.user.id, from, to);
+  } else {
+    rows = db.prepare('SELECT * FROM expenses WHERE user_id = ? ORDER BY date, id').all(req.user.id);
+  }
+
+  const home = req.user.home_currency;
+  const csvRows = rows.map((r) => {
+    let description = '';
+    try { description = decrypt(r.description_enc, req.dataKey); } catch {}
+    return [
+      r.date,
+      description,
+      r.category,
+      r.amount.toFixed(2),
+      r.currency,
+      r.amount_home.toFixed(2),
+      r.is_heavy ? 'yes' : '',
+      r.source,
+    ];
+  });
+
+  sendCsv(
+    res,
+    `expenses-${month || 'all'}.csv`,
+    ['Date', 'Description', 'Category', 'Amount', 'Currency', `Amount (${home})`, 'Heavy', 'Source'],
+    csvRows
+  );
+});
 
 // GET /api/expenses?month=YYYY-MM  (or ?from=&to=)
 router.get('/', (req, res) => {
