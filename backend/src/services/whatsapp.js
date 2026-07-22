@@ -5,8 +5,9 @@ const path = require('path');
 const fs = require('fs');
 const { db, dataDir } = require('../db');
 const { encrypt, decrypt, unwrapDataKey } = require('../crypto');
-const { parseExpenseMessage } = require('./classify');
+const { parseExpenseMessage, wouldUseLLM } = require('./classify');
 const { convert } = require('./currency');
+const rateLimit = require('./ratelimit');
 
 const logger = pino({ level: 'silent' });
 
@@ -21,6 +22,34 @@ const MAX_MESSAGE_AGE_SEC = 10 * 60; // ignore anything older (history replay pr
 // deterministic echo guard that makes command replies loop-safe: unlike the
 // v1 in-memory sent-id set, the rule lives in code and survives restarts.
 const BOT_PREFIX = '🤖';
+
+// Rate-limit explanations are sent at most once an hour per user, so someone
+// who keeps texting while throttled gets reactions rather than a wall of replies.
+const lastLimitNotice = new Map();
+
+function shouldNotifyLimit(userId) {
+  const last = lastLimitNotice.get(userId) || 0;
+  if (Date.now() - last < 60 * 60 * 1000) return false;
+  lastLimitNotice.set(userId, Date.now());
+  return true;
+}
+
+// Charges one unit of LLM quota if this message would actually call the model.
+// Returns false when the user is over their limit.
+async function checkLLMQuota(userId, text, sock, msg) {
+  if (!wouldUseLLM(text)) return true; // no API call, no quota
+
+  const result = rateLimit.tryConsume(userId);
+  if (result.allowed) return true;
+
+  await react(sock, msg, '⏳');
+  if (shouldNotifyLimit(userId)) {
+    await sendBotMessage(sock, msg.key.remoteJid,
+      `Rate limit reached — ${result.limit} auto-logged expenses per hour. `
+      + 'This one was not logged. Try again later, or add it in the app (no limit there).');
+  }
+  return false;
+}
 
 async function sendBotMessage(sock, jid, text) {
   try {
@@ -213,6 +242,8 @@ async function handleMessage(userId, sock, msg) {
     if (handled) return;
   }
 
+  if (!(await checkLLMQuota(userId, text, sock, msg))) return;
+
   const parsed = await parseExpenseMessage(text);
   if (!parsed) return; // not an expense — stay silent, it's the user's notes chat
 
@@ -373,6 +404,8 @@ async function handleReply(userId, user, dataKey, sock, msg, quotedId, text) {
     await react(sock, msg, '🗑️');
     return true;
   }
+
+  if (!(await checkLLMQuota(userId, text, sock, msg))) return true;
 
   const parsed = await parseExpenseMessage(text);
   if (!parsed) return false;

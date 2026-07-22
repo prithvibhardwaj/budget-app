@@ -16,7 +16,28 @@ function issueToken(userId) {
 // in the device keychain. No email, no password, no signup screen. The returned
 // recovery code is the ONLY way to reach this account from another device, so
 // the app shows it and tells the user to save it.
+// Anonymous signup is free, so cap it per IP — otherwise the hourly LLM limit
+// could be sidestepped by minting a fresh account for every few messages.
+const signupsByIp = new Map();
+const SIGNUP_LIMIT = Number(process.env.SIGNUP_HOURLY_LIMIT || 3);
+
+function signupAllowed(ip) {
+  const now = Date.now();
+  const recent = (signupsByIp.get(ip) || []).filter((t) => now - t < 60 * 60 * 1000);
+  if (recent.length >= SIGNUP_LIMIT) {
+    signupsByIp.set(ip, recent);
+    return false;
+  }
+  recent.push(now);
+  signupsByIp.set(ip, recent);
+  if (signupsByIp.size > 5000) signupsByIp.clear(); // crude bound; worst case resets the window
+  return true;
+}
+
 router.post('/device', (req, res) => {
+  if (!signupAllowed(req.ip)) {
+    return res.status(429).json({ error: 'Too many accounts created from this network. Try again later.' });
+  }
   const code = generateRecoveryCode();
   // Email/password columns are NOT NULL from the original schema; device
   // accounts get internal placeholders the user never sees or uses.

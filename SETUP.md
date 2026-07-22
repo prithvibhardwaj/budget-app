@@ -52,6 +52,11 @@ the LAN IP, not localhost, since the phone connects over Wi-Fi).
    | `OPENAI_MODEL` | `gpt-5-nano` |
    | `JWT_SECRET` | run `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
    | `DATA_DIR` | `/data` |
+   | `RATE_LIMIT_EXEMPT_USER_IDS` | your account id (Settings → Account ID), e.g. `1` |
+
+   Optional: `LLM_HOURLY_LIMIT` (default `5`) caps auto-logged expenses per
+   user per hour; `SIGNUP_HOURLY_LIMIT` (default `3`) caps new accounts per IP
+   per hour. Anyone listed in `RATE_LIMIT_EXEMPT_USER_IDS` is unlimited.
 5. **Add a Volume** mounted at `/data` — this persists the database, the
    encryption master key, and WhatsApp sessions across deploys. Don't skip it.
 6. Settings → Networking → **Generate Domain**. Note the URL

@@ -117,6 +117,9 @@ export default function SettingsScreen({ navigation }) {
             {user?.current_country ? `${user.current_country} (${user.current_currency})` : 'not detected yet'}
           </Text>
         </Text>
+        <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>
+          Account ID: {user?.id}
+        </Text>
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, alignItems: 'center' }}>
           <Field
             value={homeCur}

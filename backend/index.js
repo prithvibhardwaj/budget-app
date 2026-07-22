@@ -12,6 +12,7 @@ require('./src/db'); // creates tables
 const { requireAuth } = require('./src/middleware/auth');
 
 const app = express();
+app.set('trust proxy', 1); // Railway terminates TLS upstream; needed for real client IPs
 app.use(cors());
 app.use(express.json());
 
@@ -45,4 +46,9 @@ app.listen(port, () => {
   } else {
     console.log('WhatsApp bot disabled (WHATSAPP_ENABLED=false)');
   }
+
+  const rateLimit = require('./src/services/ratelimit');
+  console.log(`LLM rate limit: ${rateLimit.HOURLY_LIMIT}/hour per user`);
+  rateLimit.prune();
+  setInterval(() => rateLimit.prune(), 60 * 60 * 1000).unref();
 });

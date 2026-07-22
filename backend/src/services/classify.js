@@ -114,4 +114,11 @@ async function parseExpenseMessage(text) {
   };
 }
 
-module.exports = { parseExpenseMessage, CATEGORIES };
+// True when this message would actually reach the LLM — lets the caller charge
+// rate-limit quota only for real API calls, not for ordinary notes.
+function wouldUseLLM(text) {
+  const { rest } = preParse(text);
+  return /\d/.test(rest);
+}
+
+module.exports = { parseExpenseMessage, wouldUseLLM, CATEGORIES };

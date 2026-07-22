@@ -69,6 +69,15 @@ CREATE TABLE IF NOT EXISTS fixed_expenses (
   active INTEGER NOT NULL DEFAULT 1
 );
 
+-- One row per LLM classification, used for the hourly rate limit. Persisted
+-- rather than in-memory so a restart can't be used to reset someone's quota.
+CREATE TABLE IF NOT EXISTS llm_usage (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_llm_usage ON llm_usage(user_id, created_at);
+
 CREATE TABLE IF NOT EXISTS processed_messages (
   user_id INTEGER NOT NULL,
   msg_id TEXT NOT NULL,

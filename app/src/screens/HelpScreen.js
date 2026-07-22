@@ -69,6 +69,7 @@ export default function HelpScreen() {
         <Row left={'💰'} right="Misc Fund top-up" />
         <Row left={'✏️'} right="Entry corrected" />
         <Row left={'🗑️'} right="Entry deleted" />
+        <Row left={'⏳'} right="Hourly limit reached — not logged; add it in the app instead" />
         <Text style={{ color: colors.muted, fontSize: 12, marginTop: 4 }}>
           No reaction? The message wasn't recognized as an expense — it stays untouched.
         </Text>
