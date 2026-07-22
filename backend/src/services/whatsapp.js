@@ -72,9 +72,12 @@ function getStatus(userId) {
   return { status: s.status, qr: s.qr, pairingCode: s.pairingCode, error: s.error };
 }
 
-async function startSession(userId, phone = null) {
+// opts.fresh — the user explicitly asked to link (new number, or retry).
+// Discards any stored credentials first. Automatic reconnects and boot-time
+// resumes must NOT pass it, or they would destroy a working session.
+async function startSession(userId, phone = null, opts = {}) {
   const existing = sessions.get(userId);
-  if (existing && existing.status === 'open') return;
+  if (existing && existing.status === 'open' && !opts.fresh) return;
   if (existing) {
     existing.stopping = true;
     try { existing.sock?.end(); } catch {}
@@ -86,9 +89,11 @@ async function startSession(userId, phone = null) {
   const authDir = authDirFor(userId);
   fs.mkdirSync(authDir, { recursive: true });
 
-  // A half-finished pairing attempt leaves unregistered credentials behind that
-  // make the next attempt fail. Start pairing runs from a clean slate.
-  if (phone && !fs.existsSync(path.join(authDir, 'creds.json'))) {
+  // Always start a user-requested link from a clean slate. Credentials left
+  // over from a previous number (or a half-finished attempt) otherwise get
+  // reused, and the socket tries to authenticate as the old device while
+  // pairing a new one — which fails with no useful error.
+  if (opts.fresh) {
     fs.rmSync(authDir, { recursive: true, force: true });
     fs.mkdirSync(authDir, { recursive: true });
   }
@@ -170,11 +175,20 @@ async function startSession(userId, phone = null) {
   });
 }
 
-function stopSession(userId) {
+async function stopSession(userId) {
   const s = sessions.get(userId);
   if (s) {
     s.stopping = true;
-    try { s.sock?.logout(); } catch {}
+    // Detach the credential writer BEFORE logging out, otherwise a late
+    // creds.update rewrites creds.json after we delete it and the next link
+    // silently reuses the old number's identity.
+    try { s.sock?.ev?.removeAllListeners?.('creds.update'); } catch {}
+    try {
+      await Promise.race([
+        s.sock?.logout(),
+        new Promise((resolve) => setTimeout(resolve, 3000)),
+      ]);
+    } catch { /* socket already dead — the credential wipe below still applies */ }
     try { s.sock?.end(); } catch {}
     sessions.delete(userId);
   }

@@ -82,9 +82,9 @@ router.get('/recovery-code', (req, res) => {
 // Delete the account and everything attached to it. Expenses, SWS history and
 // fixed expenses cascade via foreign keys; the WhatsApp session and dedupe
 // records are cleaned up explicitly.
-router.delete('/', (req, res) => {
+router.delete('/', async (req, res) => {
   const userId = req.user.id;
-  try { whatsapp.stopSession(userId); } catch { /* no session to stop */ }
+  try { await whatsapp.stopSession(userId); } catch { /* no session to stop */ }
   db.prepare('DELETE FROM processed_messages WHERE user_id = ?').run(userId);
   db.prepare('DELETE FROM users WHERE id = ?').run(userId);
   res.json({ ok: true });
@@ -96,7 +96,8 @@ router.post('/whatsapp/link', async (req, res) => {
   if (!waEnabled) return res.status(503).json({ error: 'WhatsApp is disabled on this server' });
   const phone = req.body?.phone ? String(req.body.phone) : null;
   try {
-    await whatsapp.startSession(req.user.id, phone);
+    // fresh: this is an explicit link request, so discard any stored session
+    await whatsapp.startSession(req.user.id, phone, { fresh: true });
     res.json({ ok: true });
   } catch (err) {
     console.error('WA link error:', err);
@@ -113,8 +114,8 @@ router.get('/whatsapp/status', async (req, res) => {
   res.json({ status: s.status, qr: qrDataUrl, pairing_code: s.pairingCode, error: s.error || null });
 });
 
-router.post('/whatsapp/unlink', (req, res) => {
-  whatsapp.stopSession(req.user.id);
+router.post('/whatsapp/unlink', async (req, res) => {
+  await whatsapp.stopSession(req.user.id);
   res.json({ ok: true });
 });
 
